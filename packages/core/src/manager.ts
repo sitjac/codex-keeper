@@ -14,8 +14,8 @@ import type {
   SessionsResponse,
   SessionTranscriptPage,
   WorkspaceSummary,
-} from "@codexnamer/shared";
-import { SESSION_INDEX_FILENAME } from "@codexnamer/shared";
+} from "@codex-keeper/shared";
+import { SESSION_INDEX_FILENAME } from "@codex-keeper/shared";
 import { readCodexThreadStateSnapshot, updateCodexThreadTitle } from "./codex-state.js";
 import { loadConfigView, loadEffectiveConfig, writeUserConfig } from "./config.js";
 import { StateDatabase } from "./database.js";
@@ -38,7 +38,7 @@ import { basenameSafe, toUtcIso } from "./util.js";
 
 const SCAN_FRESH_WINDOW_MS = 1_200;
 
-export class CodexSessionManager {
+export class CodexKeeper {
   private sessionIndexCache?: {
     size: number;
     mtimeMs: number;
@@ -74,14 +74,14 @@ export class CodexSessionManager {
     configPath?: string;
     overrides?: Partial<EffectiveConfig>;
     operator?: string;
-  }): Promise<CodexSessionManager> {
+  }): Promise<CodexKeeper> {
     const config = await loadEffectiveConfig({
       cwd: options?.cwd,
       configPath: options?.configPath,
       overrides: options?.overrides,
     });
     const db = await StateDatabase.create(path.join(config.general.stateDir, "app.db"));
-    return new CodexSessionManager(config, db, options?.operator, {
+    return new CodexKeeper(config, db, options?.operator, {
       cwd: options?.cwd,
       configPath: options?.configPath,
       overrides: options?.overrides,
@@ -367,7 +367,7 @@ export class CodexSessionManager {
 
   async getRenameHistory(
     threadId: string,
-  ): Promise<import("@codexnamer/shared").RenameHistoryRecord[]> {
+  ): Promise<import("@codex-keeper/shared").RenameHistoryRecord[]> {
     await this.scan();
     return this.db.getRenameHistory(threadId);
   }

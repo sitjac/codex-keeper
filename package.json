@@ -1,7 +1,7 @@
 {
-  "name": "codexnamer",
+  "name": "codex-keeper",
   "version": "0.1.0",
-  "description": "sitJac/codex-session-manager is a local-first Codex session browser with manual rename and delete support.",
+  "description": "sitJac/codex-keeper is a local-first Codex session browser with manual rename and delete support.",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -18,11 +18,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sitJac/codex-session-manager.git"
+    "url": "git+https://github.com/sitJac/codex-keeper.git"
   },
-  "homepage": "https://github.com/sitJac/codex-session-manager#readme",
+  "homepage": "https://github.com/sitJac/codex-keeper#readme",
   "bugs": {
-    "url": "https://github.com/sitJac/codex-session-manager/issues"
+    "url": "https://github.com/sitJac/codex-keeper/issues"
   },
   "author": "sitJac",
   "workspaces": [
@@ -44,8 +44,8 @@
     "server": "npm run serve",
     "serve": "npm run build:runtime && npm run web:build && node packages/cli/dist/index.js serve",
     "web": "tsx scripts/launch-ui.ts web",
-    "web:raw": "npm run dev --workspace @codexnamer/web",
-    "web:build": "npm run build --workspace @codexnamer/web",
+    "web:raw": "npm run dev --workspace @codex-keeper/web",
+    "web:build": "npm run build --workspace @codex-keeper/web",
     "test": "vitest run",
     "test:watch": "vitest"
   },

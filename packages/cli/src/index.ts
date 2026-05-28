@@ -3,8 +3,8 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { startApiServer, waitForShutdown } from "@codexnamer/api";
-import { CodexSessionManager } from "@codexnamer/core";
+import { startApiServer, waitForShutdown } from "@codex-keeper/api";
+import { CodexKeeper } from "@codex-keeper/core";
 import { cac } from "cac";
 import { inspectListeningPortOwner } from "./port-owner.js";
 import {
@@ -23,8 +23,8 @@ type ServeOptions = {
   webRoot?: string;
 };
 
-async function withManager<T>(fn: (manager: CodexSessionManager) => Promise<T>): Promise<T> {
-  const manager = await CodexSessionManager.create({ operator: "cli" });
+async function withManager<T>(fn: (manager: CodexKeeper) => Promise<T>): Promise<T> {
+  const manager = await CodexKeeper.create({ operator: "cli" });
   try {
     return await fn(manager);
   } finally {
@@ -63,7 +63,7 @@ function resolvePort(portValue: string | number | undefined, fallback: number): 
 }
 
 const normalizedArgv = normalizeArgv(process.argv);
-const cli = cac("codexnamer");
+const cli = cac("codex-keeper");
 
 cli
   .command("serve", "Run the local API with built Web assets")
@@ -153,8 +153,8 @@ cli
       );
     }
 
-    console.error(`[codexnamer] Service listening at http://${host}:${port}/`);
-    console.error(`[codexnamer] Web root: ${webRoot}`);
+    console.error(`[codex-keeper] Service listening at http://${host}:${port}/`);
+    console.error(`[codex-keeper] Web root: ${webRoot}`);
     await waitForShutdown(app);
   });
 

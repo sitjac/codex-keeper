@@ -40,7 +40,7 @@ function stubRunningService(params: { cwd?: string; includeConfig?: boolean }): 
 
 describe("probeRunningServeTarget", () => {
   it("classifies a healthy service from the same repo", async () => {
-    const expectedCwd = path.join(os.tmpdir(), "codexnamer-same");
+    const expectedCwd = path.join(os.tmpdir(), "codex-keeper-same");
     const port = 42110;
     stubRunningService({ cwd: expectedCwd });
 

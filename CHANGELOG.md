@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to sitJac/codex-session-manager will be documented in this file.
+All notable changes to sitJac/codex-keeper will be documented in this file.
 
 ## [Unreleased]
 

@@ -6,7 +6,7 @@ import type {
   SessionTranscriptEntry,
   SessionTranscriptPage,
   SessionTranscriptRole,
-} from "@codexnamer/shared";
+} from "@codex-keeper/shared";
 import fg from "fast-glob";
 
 import { isInternalCodexThreadSource } from "./codex-state.js";

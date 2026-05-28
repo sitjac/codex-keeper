@@ -1,15 +1,15 @@
 {
-  "name": "@codexnamer/cli",
+  "name": "@codex-keeper/cli",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "codexnamer": "./dist/index.js"
+    "codex-keeper": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@codexnamer/api": "0.1.0",
-    "@codexnamer/core": "0.1.0",
+    "@codex-keeper/api": "0.1.0",
+    "@codex-keeper/core": "0.1.0",
     "cac": "^6.7.14"
   }
 }

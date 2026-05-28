@@ -41,7 +41,7 @@ export function formatServeAddressInUseMessage(params: {
 }): string {
   const { host, port, serviceStatus, portOwner } = params;
   const baseUrl = `http://${host}:${port}/`;
-  const lines = [`Cannot start sitJac/codex-session-manager because ${baseUrl} is already in use.`];
+  const lines = [`Cannot start sitJac/codex-keeper because ${baseUrl} is already in use.`];
 
   if (
     serviceStatus?.installed &&
@@ -83,8 +83,8 @@ export function formatServeAlreadyRunningMessage(params: {
   cwd?: string;
 }): string {
   return params.cwd
-    ? `[codexnamer] Reusing existing sitJac/codex-session-manager service at ${params.baseUrl} for repo ${params.cwd}`
-    : `[codexnamer] Reusing existing sitJac/codex-session-manager service at ${params.baseUrl}`;
+    ? `[codex-keeper] Reusing existing sitJac/codex-keeper service at ${params.baseUrl} for repo ${params.cwd}`
+    : `[codex-keeper] Reusing existing sitJac/codex-keeper service at ${params.baseUrl}`;
 }
 
 export function formatServeOtherRepoMessage(params: {
@@ -94,7 +94,7 @@ export function formatServeOtherRepoMessage(params: {
 }): string {
   const baseUrl = `http://${params.host}:${params.port}/`;
   return [
-    `Cannot start sitJac/codex-session-manager because ${baseUrl} is already serving another sitJac/codex-session-manager repo from ${params.cwd}.`,
+    `Cannot start sitJac/codex-keeper because ${baseUrl} is already serving another sitJac/codex-keeper repo from ${params.cwd}.`,
     `Stop it with \`${formatServiceCommand("stop")}\` if that address belongs to your installed service, or retry on another port such as \`${formatServeRetryCommand(params.host, params.port + 1)}\`.`,
   ].join(" ");
 }

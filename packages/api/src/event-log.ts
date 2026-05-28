@@ -1,4 +1,4 @@
-import type { ApiEventBatch, ApiEventRecord, ApiEventType } from "@codexnamer/shared";
+import type { ApiEventBatch, ApiEventRecord, ApiEventType } from "@codex-keeper/shared";
 
 const DEFAULT_EVENT_LIMIT = 100;
 const MAX_EVENT_LIMIT = 500;

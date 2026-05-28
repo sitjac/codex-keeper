@@ -1,8 +1,8 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const apiBase = process.env.CODEXNAMER_API_BASE ?? "http://127.0.0.1:42110";
-const webPort = Number(process.env.CODEXNAMER_WEB_PORT ?? "43110");
+const apiBase = process.env.CODEX_KEEPER_API_BASE ?? "http://127.0.0.1:42110";
+const webPort = Number(process.env.CODEX_KEEPER_WEB_PORT ?? "43110");
 
 export default defineConfig({
   plugins: [react()],

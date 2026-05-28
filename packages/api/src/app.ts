@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { CodexSessionManager } from "@codexnamer/core";
+import { CodexKeeper } from "@codex-keeper/core";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance } from "fastify";
 
@@ -12,7 +12,7 @@ import { registerSessionRoutes } from "./routes/sessions.js";
 export type ApiServer = FastifyInstance;
 
 export async function buildApiServer(options?: {
-  manager?: CodexSessionManager;
+  manager?: CodexKeeper;
   operator?: string;
   staticWebRoot?: string;
   cwd?: string;
@@ -24,7 +24,7 @@ export async function buildApiServer(options?: {
 
   const ownedManager = options?.manager
     ? undefined
-    : await CodexSessionManager.create({
+    : await CodexKeeper.create({
         operator: options?.operator ?? "api",
         cwd: options?.cwd,
         configPath: options?.configPath,

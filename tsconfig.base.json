@@ -15,9 +15,9 @@
     "sourceMap": true,
     "composite": true,
     "paths": {
-      "@codexnamer/api": ["./packages/api/src/index.ts"],
-      "@codexnamer/shared": ["./packages/shared/src/index.ts"],
-      "@codexnamer/core": ["./packages/core/src/index.ts"]
+      "@codex-keeper/api": ["./packages/api/src/index.ts"],
+      "@codex-keeper/shared": ["./packages/shared/src/index.ts"],
+      "@codex-keeper/core": ["./packages/core/src/index.ts"]
     }
   }
 }

@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { CodexSessionManager } from "@codexnamer/core";
-import type { EffectiveConfig } from "@codexnamer/shared";
+import { CodexKeeper } from "@codex-keeper/core";
+import type { EffectiveConfig } from "@codex-keeper/shared";
 import Database from "better-sqlite3";
 
 type DeepPartial<T> = {
@@ -239,10 +239,10 @@ export async function createManagerForTest(
     codexHome: string;
     stateDir: string;
   },
-): Promise<CodexSessionManager> {
+): Promise<CodexKeeper> {
   const workspaceRoot = path.dirname(overrides.codexHome);
-  const configPath = path.join(workspaceRoot, ".config", "codexnamer", "config.toml");
-  const manager = await CodexSessionManager.create({
+  const configPath = path.join(workspaceRoot, ".config", "codex-keeper", "config.toml");
+  const manager = await CodexKeeper.create({
     cwd: workspaceRoot,
     configPath,
     overrides: {

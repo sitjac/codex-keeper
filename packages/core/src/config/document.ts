@@ -1,4 +1,4 @@
-import type { ConfigDocument, UiLanguage } from "@codexnamer/shared";
+import type { ConfigDocument, UiLanguage } from "@codex-keeper/shared";
 import * as TOML from "@iarna/toml";
 
 import { ensureTrailingNewline } from "../util.js";

@@ -9,4 +9,4 @@ export type {
   SessionTranscriptPage,
   UiLanguage,
   WorkspaceSummary,
-} from "@codexnamer/shared";
+} from "@codex-keeper/shared";

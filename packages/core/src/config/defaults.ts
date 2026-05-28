@@ -1,5 +1,5 @@
-import type { EffectiveConfig } from "@codexnamer/shared";
-import { DEFAULT_STATE_RELATIVE_PATH } from "@codexnamer/shared";
+import type { EffectiveConfig } from "@codex-keeper/shared";
+import { DEFAULT_STATE_RELATIVE_PATH } from "@codex-keeper/shared";
 
 export const DEFAULT_CONFIG: EffectiveConfig = {
   general: {

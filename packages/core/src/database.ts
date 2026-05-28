@@ -13,7 +13,7 @@ import type {
   SessionStatusEstimate,
   SessionSummary,
   WorkspaceSummary,
-} from "@codexnamer/shared";
+} from "@codex-keeper/shared";
 import Database from "better-sqlite3";
 
 import { isDirtySinceRename } from "./revision.js";

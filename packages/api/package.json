@@ -1,14 +1,14 @@
 {
-  "name": "@codexnamer/api",
+  "name": "@codex-keeper/api",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "codexnamer-api": "./dist/index.js"
+    "codex-keeper-api": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@codexnamer/core": "0.1.0",
+    "@codex-keeper/core": "0.1.0",
     "@fastify/static": "^9.1.0",
     "fastify": "^5.8.4"
   }

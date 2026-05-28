@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ConfigDocument, ConfigView, EffectiveConfig } from "@codexnamer/shared";
+import type { ConfigDocument, ConfigView, EffectiveConfig } from "@codex-keeper/shared";
 import {
   DEFAULT_CONFIG_RELATIVE_PATH,
   DEFAULT_STATE_RELATIVE_PATH,
   PROJECT_CONFIG_FILENAME,
-} from "@codexnamer/shared";
+} from "@codex-keeper/shared";
 import * as TOML from "@iarna/toml";
 
 import { deepMerge, expandHome } from "../util.js";
