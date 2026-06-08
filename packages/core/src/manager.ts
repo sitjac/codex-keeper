@@ -38,6 +38,77 @@ import { basenameSafe, toUtcIso } from "./util.js";
 
 const SCAN_FRESH_WINDOW_MS = 1_200;
 
+type OfficialNameCandidate = {
+  threadName: string;
+  updatedAt?: string;
+};
+
+function hasNewerTimestamp(left?: string, right?: string): boolean {
+  const leftMs = left ? Date.parse(left) : Number.NaN;
+  const rightMs = right ? Date.parse(right) : Number.NaN;
+  return Number.isFinite(leftMs) && Number.isFinite(rightMs) && leftMs > rightMs;
+}
+
+function preferNewerName(
+  current: OfficialNameCandidate | undefined,
+  next: OfficialNameCandidate | undefined,
+): OfficialNameCandidate | undefined {
+  if (!current) {
+    return next;
+  }
+  if (!next) {
+    return current;
+  }
+  return hasNewerTimestamp(next.updatedAt, current.updatedAt) ? next : current;
+}
+
+function resolveOfficialName(params: {
+  manualName?: string;
+  manualUpdatedAt?: string;
+  codexStateName?: string;
+  codexStateUpdatedAt?: string;
+  rolloutName?: string;
+  rolloutUpdatedAt?: string;
+  indexedName?: string;
+  indexedUpdatedAt?: string;
+}): OfficialNameCandidate | undefined {
+  const manual = params.manualName
+    ? {
+        threadName: params.manualName,
+        updatedAt: params.manualUpdatedAt,
+      }
+    : undefined;
+  const codexState = params.codexStateName
+    ? {
+        threadName: params.codexStateName,
+        updatedAt: params.codexStateUpdatedAt,
+      }
+    : undefined;
+  const contract = params.rolloutName
+    ? {
+        threadName: params.rolloutName,
+        updatedAt: params.rolloutUpdatedAt,
+      }
+    : params.indexedName
+      ? {
+          threadName: params.indexedName,
+          updatedAt: params.indexedUpdatedAt,
+        }
+      : undefined;
+
+  if (manual) {
+    if (!contract) {
+      return manual;
+    }
+    if (contract.threadName === manual.threadName) {
+      return preferNewerName(manual, contract);
+    }
+    return hasNewerTimestamp(contract.updatedAt, manual.updatedAt) ? contract : manual;
+  }
+
+  return codexState ?? contract;
+}
+
 export class CodexKeeper {
   private sessionIndexCache?: {
     size: number;
@@ -166,12 +237,22 @@ export class CodexKeeper {
 
       const indexedName = snapshot.latestByThreadId.get(result.session.threadId);
       const quickName = await readLatestThreadNameUpdate(rolloutPath);
-      const officialName = codexState?.title ?? quickName.threadName ?? indexedName?.threadName;
-      const officialUpdatedAt =
-        codexState?.updatedAt ?? quickName.updatedAt ?? indexedName?.updatedAt;
+      const renameState = this.db.getRenameState(result.session.threadId);
+      const manualName =
+        renameState?.lastAppliedSource === "manual" ? renameState.lastAppliedName : undefined;
+      const officialName = resolveOfficialName({
+        manualName,
+        manualUpdatedAt: renameState?.lastAppliedAt,
+        codexStateName: codexState?.title,
+        codexStateUpdatedAt: codexState?.updatedAt,
+        rolloutName: quickName.threadName,
+        rolloutUpdatedAt: quickName.updatedAt,
+        indexedName: indexedName?.threadName,
+        indexedUpdatedAt: indexedName?.updatedAt,
+      });
       if (officialName) {
-        result.session.threadName = officialName;
-        result.session.threadNameUpdatedAt = officialUpdatedAt;
+        result.session.threadName = officialName.threadName;
+        result.session.threadNameUpdatedAt = officialName.updatedAt;
         preserveThreadIds.add(result.session.threadId);
       }
 

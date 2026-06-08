@@ -170,6 +170,64 @@ describe("rollout ingest", () => {
     }
   });
 
+  test("keeps manual rename when Codex state title later falls back", async () => {
+    const temp = await createTempWorkspace();
+    const rolloutPath = await writeRolloutFixture({
+      codexHome: temp.codexHome,
+      threadId: "thread-manual-rename-persisted",
+      userMessage: "给这个 session 起一个稳定标题",
+      lastAgentMessage: "我会保持手动标题。",
+      threadName: "原始标题",
+    });
+    const dbPath = await writeCodexStateFixture({
+      codexHome: temp.codexHome,
+      threads: [
+        {
+          id: "thread-manual-rename-persisted",
+          rolloutPath,
+          cwd: "/tmp/project-alpha",
+          title: "自动生成旧标题",
+        },
+      ],
+    });
+    let manager = await createManagerForTest({
+      codexHome: temp.codexHome,
+      stateDir: temp.stateDir,
+    });
+
+    try {
+      await manager.scan();
+      await manager.rename("thread-manual-rename-persisted", "手动固定标题");
+      await manager.close();
+
+      const db = new Database(dbPath);
+      try {
+        db.prepare(
+          `UPDATE threads
+           SET title = ?, updated_at = ?, updated_at_ms = ?
+           WHERE id = ?`,
+        ).run(
+          "自动生成旧标题",
+          Math.floor(new Date("2026-04-04T12:45:00.000Z").getTime() / 1000),
+          new Date("2026-04-04T12:45:00.000Z").getTime(),
+          "thread-manual-rename-persisted",
+        );
+      } finally {
+        db.close();
+      }
+
+      manager = await createManagerForTest({
+        codexHome: temp.codexHome,
+        stateDir: temp.stateDir,
+      });
+      await manager.scan();
+      const detail = await manager.getSessionDetail("thread-manual-rename-persisted");
+      expect(detail?.officialName).toBe("手动固定标题");
+    } finally {
+      await manager.close();
+    }
+  });
+
   test("hides Codex internal subagent sessions from workspace counts", async () => {
     const temp = await createTempWorkspace();
     const cwd = "/tmp/dms_workflow_volkswagen";
