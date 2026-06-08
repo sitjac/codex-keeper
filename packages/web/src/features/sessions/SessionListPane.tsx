@@ -5,38 +5,16 @@ import type { UiLanguage } from "../../i18n.js";
 import { t } from "../../i18n.js";
 import type { SessionSummary } from "../../types.js";
 import { addAppTransitionType } from "../../view-transitions.js";
+import {
+  collapseAllWorkspaceIds,
+  getWorkspaceBulkActionState,
+  groupSessionsByWorkspace,
+  pruneCollapsedWorkspaceIds,
+} from "./session-list-pane-utils.js";
 
 const SESSION_CONTEXT_MENU_WIDTH = 220;
 const SESSION_CONTEXT_MENU_HEIGHT = 104;
 const SESSION_CONTEXT_MENU_MARGIN = 12;
-
-type WorkspaceSessionGroup = {
-  workspaceId: string;
-  workspaceLabel: string;
-  sessions: SessionSummary[];
-};
-
-function groupSessionsByWorkspace(sessions: SessionSummary[]): WorkspaceSessionGroup[] {
-  const groups = new Map<string, WorkspaceSessionGroup>();
-  for (const session of sessions) {
-    const existing = groups.get(session.workspaceId);
-    if (existing) {
-      existing.sessions.push(session);
-      continue;
-    }
-    groups.set(session.workspaceId, {
-      workspaceId: session.workspaceId,
-      workspaceLabel: session.workspaceLabel,
-      sessions: [session],
-    });
-  }
-
-  return [...groups.values()].sort((left, right) => {
-    const leftLatest = left.sessions[0]?.updatedAt ?? "";
-    const rightLatest = right.sessions[0]?.updatedAt ?? "";
-    return rightLatest.localeCompare(leftLatest);
-  });
-}
 
 export function SessionListPane(props: {
   sessions: SessionSummary[];
@@ -69,9 +47,17 @@ export function SessionListPane(props: {
     () => groupSessionsByWorkspace(props.sessions),
     [props.sessions],
   );
+  const workspaceIds = React.useMemo(
+    () => workspaceGroups.map((workspace) => workspace.workspaceId),
+    [workspaceGroups],
+  );
   const tt = React.useCallback(
     (key: Parameters<typeof t>[1]) => t(props.uiLanguage, key),
     [props.uiLanguage],
+  );
+  const bulkActionState = React.useMemo(
+    () => getWorkspaceBulkActionState(workspaceIds, collapsedWorkspaceIds),
+    [collapsedWorkspaceIds, workspaceIds],
   );
   const selectedWorkspaceId = React.useMemo(
     () =>
@@ -84,6 +70,19 @@ export function SessionListPane(props: {
   React.useEffect(() => {
     setSearchDraft(props.search);
   }, [props.search]);
+
+  React.useEffect(() => {
+    setCollapsedWorkspaceIds((previous) => {
+      const pruned = pruneCollapsedWorkspaceIds(workspaceIds, previous);
+      if (
+        pruned.size === previous.size &&
+        [...pruned].every((workspaceId) => previous.has(workspaceId))
+      ) {
+        return previous;
+      }
+      return new Set(pruned);
+    });
+  }, [workspaceIds]);
 
   React.useEffect(() => {
     if (!selectedWorkspaceId) {
@@ -226,6 +225,14 @@ export function SessionListPane(props: {
     });
   }, []);
 
+  const collapseAllWorkspaces = React.useCallback(() => {
+    setCollapsedWorkspaceIds(collapseAllWorkspaceIds(workspaceIds));
+  }, [workspaceIds]);
+
+  const expandAllWorkspaces = React.useCallback(() => {
+    setCollapsedWorkspaceIds(new Set());
+  }, []);
+
   const contextMenuPosition = React.useMemo(() => {
     if (!contextMenu) {
       return undefined;
@@ -267,6 +274,22 @@ export function SessionListPane(props: {
           </p>
         </div>
         <div className="header-actions">
+          <button
+            className="btn-sm"
+            disabled={!bulkActionState.canCollapseAll}
+            onClick={collapseAllWorkspaces}
+            type="button"
+          >
+            {tt("collapseAllWorkspaces")}
+          </button>
+          <button
+            className="btn-sm"
+            disabled={!bulkActionState.canExpandAll}
+            onClick={expandAllWorkspaces}
+            type="button"
+          >
+            {tt("expandAllWorkspaces")}
+          </button>
           <button
             className="btn-refresh"
             onClick={props.onRefresh}

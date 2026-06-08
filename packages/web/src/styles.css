@@ -190,6 +190,11 @@ pre {
   gap: 8px;
 }
 
+.session-list-header .header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .btn-sm,
 .btn-refresh,
 .btn-icon {
@@ -214,6 +219,13 @@ pre {
 .btn-icon:hover {
   border-color: var(--border-strong);
   background: var(--panel-muted);
+}
+
+.btn-sm:disabled,
+.btn-refresh:disabled,
+.btn-icon:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .btn-sm.primary {

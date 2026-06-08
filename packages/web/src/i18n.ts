@@ -6,6 +6,8 @@ const COPY = {
   "en-US": {
     sessions: "Sessions",
     workspaces: "Workspaces",
+    collapseAllWorkspaces: "Collapse all",
+    expandAllWorkspaces: "Expand all",
     refresh: "Refresh",
     copySessionId: "Copy session ID",
     sessionActions: "Session actions",
@@ -46,6 +48,8 @@ const COPY = {
   "zh-CN": {
     sessions: "会话",
     workspaces: "工作区",
+    collapseAllWorkspaces: "全部折叠",
+    expandAllWorkspaces: "全部展开",
     refresh: "刷新",
     copySessionId: "复制会话 ID",
     sessionActions: "会话操作",
