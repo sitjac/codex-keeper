@@ -51,7 +51,6 @@ export function useControlDeckState() {
       detail: resources.detail,
       patchSelectedSession: resources.patchSelectedSession,
       removeSession: resources.removeSession,
-      refreshCurrentView: resources.refreshCurrentView,
     },
     ui: {
       setError: ui.setError,

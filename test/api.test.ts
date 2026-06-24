@@ -124,11 +124,19 @@ describe("local api", () => {
     });
     expect(renamed.statusCode).toBe(200);
     expect(renamed.json().name).toBe("Manual API title");
+    expect(renamed.json().written).toBe(true);
 
     const stateDb = await import("@codex-keeper/core").then((module) =>
       module.readCodexThreadStateSnapshot(workspace.codexHome),
     );
-    expect(stateDb.get("019d-api-rename")?.title).toBe("Manual API title");
+    expect(stateDb.get("019d-api-rename")?.title).toBe("Old API title");
+
+    const renamedIndex = await readSessionIndex(
+      path.join(workspace.codexHome, "session_index.jsonl"),
+    );
+    expect(renamedIndex.latestByThreadId.get("019d-api-rename")?.threadName).toBe(
+      "Manual API title",
+    );
 
     const deleted = await app.inject({
       method: "DELETE",

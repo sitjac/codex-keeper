@@ -483,8 +483,11 @@ export async function appendThreadNameUpdatedEvent(params: {
 
 export async function readSessionTranscript(rolloutPath: string): Promise<SessionTranscript> {
   const raw = await fs.readFile(rolloutPath, "utf8");
-  const items: SessionTranscriptEntry[] = [];
+  return parseSessionTranscript(raw);
+}
 
+export function parseSessionTranscript(raw: string): SessionTranscript {
+  const items: SessionTranscriptEntry[] = [];
   for (const line of raw.split(/\r?\n/)) {
     if (line.trim().length === 0) {
       continue;
@@ -635,15 +638,16 @@ export async function readSessionTranscript(rolloutPath: string): Promise<Sessio
   };
 }
 
-export async function readSessionTranscriptPage(params: {
-  rolloutPath: string;
-  page?: number;
-  pageSize?: number;
-  includeHidden?: boolean;
-  role?: SessionTranscriptRole | "all";
-  query?: string;
-}): Promise<SessionTranscriptPage> {
-  const transcript = await readSessionTranscript(params.rolloutPath);
+export function paginateSessionTranscript(
+  transcript: SessionTranscript,
+  params: {
+    page?: number;
+    pageSize?: number;
+    includeHidden?: boolean;
+    role?: SessionTranscriptRole | "all";
+    query?: string;
+  } = {},
+): SessionTranscriptPage {
   const pageSize = Math.max(1, Math.floor(params.pageSize ?? 40));
   const page = Math.max(1, Math.floor(params.page ?? 1));
   const query = normalizeWhitespace(params.query)?.toLowerCase();
@@ -678,4 +682,16 @@ export async function readSessionTranscriptPage(params: {
     pageSize,
     hasMore: currentPage < totalPages,
   };
+}
+
+export async function readSessionTranscriptPage(params: {
+  rolloutPath: string;
+  page?: number;
+  pageSize?: number;
+  includeHidden?: boolean;
+  role?: SessionTranscriptRole | "all";
+  query?: string;
+}): Promise<SessionTranscriptPage> {
+  const transcript = await readSessionTranscript(params.rolloutPath);
+  return paginateSessionTranscript(transcript, params);
 }

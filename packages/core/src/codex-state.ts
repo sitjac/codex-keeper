@@ -161,6 +161,7 @@ export async function updateCodexThreadTitle(params: {
   threadId: string;
   title: string;
   updatedAt?: string;
+  busyTimeoutMs?: number;
 }): Promise<CodexThreadTitleUpdateResult> {
   const dbPath = await findLatestCodexStateDb(params.codexHome);
   if (!dbPath) {
@@ -184,7 +185,7 @@ export async function updateCodexThreadTitle(params: {
   let db: Database.Database | undefined;
   try {
     db = new Database(dbPath, { fileMustExist: true });
-    db.pragma("busy_timeout = 5000");
+    db.pragma(`busy_timeout = ${Math.max(0, Math.floor(params.busyTimeoutMs ?? 5000))}`);
     if (!hasThreadsTitleSchema(db)) {
       return {
         dbPath,

@@ -13,7 +13,6 @@ type ControlDeckActionResources = {
   detail: SessionDetail | null;
   patchSelectedSession: (threadId: string, patch: Partial<SessionSummary & SessionDetail>) => void;
   removeSession: (threadId: string) => void;
-  refreshCurrentView: (refreshOptions?: { threadId?: string }) => void;
 };
 
 type ControlDeckActionUi = {
@@ -35,12 +34,6 @@ export function useControlDeckActions(params: {
     ui.setNotice({
       tone: "error",
       text: message,
-    });
-  };
-
-  const refreshAfterAction = (threadId: string) => {
-    resources.refreshCurrentView({
-      threadId,
     });
   };
 
@@ -70,7 +63,6 @@ export function useControlDeckActions(params: {
         tone: "success",
         text: success.message,
       });
-      refreshAfterAction(options.threadId);
       return true;
     } catch (nextError) {
       setFailure(nextError);

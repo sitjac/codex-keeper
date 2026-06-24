@@ -68,7 +68,7 @@ export function registerSessionRoutes(
     const body = renameRequestSchema.parse(
       (request.body as Record<string, unknown> | undefined) ?? {},
     );
-    const result = await manager.rename(params.id, body.name);
+    const result = await manager.rename(params.id, body.name, { codexStateWrite: "defer" });
     eventLog.publish("session.renamed", {
       threadId: params.id,
       name: result.name,
