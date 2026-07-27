@@ -25,6 +25,7 @@ export function SessionBrowser(props: {
   actioning: boolean;
   actionLabel: string | null;
   error: string | null;
+  transcriptRefreshToken: number;
   uiLanguage: UiLanguage;
   themeMode: ThemeMode;
   onSearchChange: (value: string) => void;
@@ -33,6 +34,7 @@ export function SessionBrowser(props: {
   onCopySessionId: (threadId: string) => void | Promise<void>;
   onDeleteSession: (threadId: string) => boolean | Promise<boolean>;
   onExitFocusMode: () => void;
+  onConversationSettled: () => void | Promise<void>;
   onToggleThemeMode: () => void;
   onSessionPaneWidthChange: (delta: number) => void;
   onStartSessionResize: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -143,7 +145,12 @@ export function SessionBrowser(props: {
                   {props.loadingDetail ? (
                     <div className="loading-state chat-loading">{tt("loadingSessionDetail")}</div>
                   ) : null}
-                  <TranscriptPanel detail={props.detail} uiLanguage={props.uiLanguage} />
+                  <TranscriptPanel
+                    detail={props.detail}
+                    onConversationSettled={props.onConversationSettled}
+                    transcriptRefreshToken={props.transcriptRefreshToken}
+                    uiLanguage={props.uiLanguage}
+                  />
                 </div>
               </div>
             </>

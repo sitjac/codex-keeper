@@ -4,6 +4,7 @@ import type {
   RenameApplyResponse,
   SessionDeleteResult,
   SessionDetail,
+  SessionMessageResponse,
   SessionsResponse,
   SessionTranscriptPage,
 } from "./types.js";
@@ -106,6 +107,16 @@ export async function renameSession(threadId: string, name: string): Promise<Ren
   return requestJson<RenameApplyResponse>(`/api/v1/sessions/${threadId}/rename`, {
     method: "POST",
     body: JSON.stringify({ name }),
+  });
+}
+
+export async function sendSessionMessage(
+  threadId: string,
+  message: string,
+): Promise<SessionMessageResponse> {
+  return requestJson<SessionMessageResponse>(`/api/v1/sessions/${threadId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
   });
 }
 

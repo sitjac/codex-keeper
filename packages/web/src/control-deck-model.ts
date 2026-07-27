@@ -76,9 +76,14 @@ export function eventRefreshResourcesForTab(
   events: readonly Pick<ApiEventRecord, "type">[],
 ): DataResource[] {
   return events.some((event) =>
-    ["scan.completed", "session.renamed", "session.deleted", "session.index.compacted"].includes(
-      event.type,
-    ),
+    [
+      "scan.completed",
+      "session.renamed",
+      "session.deleted",
+      "session.index.compacted",
+      "session.turn.completed",
+      "session.turn.failed",
+    ].includes(event.type),
   )
     ? ["sessions"]
     : [];

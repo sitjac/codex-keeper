@@ -25,5 +25,8 @@ describe("simplified reader resource planning", () => {
     expect(eventRefreshResourcesForTab("sessions", [{ type: "scan.completed" }])).toEqual([
       "sessions",
     ]);
+    expect(eventRefreshResourcesForTab("sessions", [{ type: "session.turn.completed" }])).toEqual([
+      "sessions",
+    ]);
   });
 });

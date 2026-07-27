@@ -4,6 +4,7 @@ export type {
   RenameApplyResponse,
   SessionDeleteResult,
   SessionDetail,
+  SessionMessageResponse,
   SessionSummary,
   SessionsResponse,
   SessionTranscriptPage,

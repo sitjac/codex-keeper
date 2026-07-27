@@ -1,5 +1,5 @@
 import type { ApiEventRecord } from "@codex-keeper/shared";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DataResource, TabId } from "./control-deck-model.js";
 import { mergeResources, panelResourcesForTab } from "./control-deck-model.js";
 import { useConfigResourceStore } from "./resources/useConfigResourceStore.js";
@@ -27,6 +27,7 @@ export function useControlDeckResources(options: UseControlDeckResourcesOptions)
     onFailure,
   } = options;
   const eventCursorRef = useRef(0);
+  const [transcriptRefreshToken, setTranscriptRefreshToken] = useState(0);
   const latestUiStateRef = useRef({
     tab,
     selectedId,
@@ -44,6 +45,9 @@ export function useControlDeckResources(options: UseControlDeckResourcesOptions)
   };
   const reportFailure = useCallback((error: unknown) => {
     latestCallbacksRef.current.onFailure(error);
+  }, []);
+  const refreshTranscript = useCallback(() => {
+    setTranscriptRefreshToken((previous) => previous + 1);
   }, []);
 
   const sessions = useSessionResourceStore({
@@ -119,10 +123,11 @@ export function useControlDeckResources(options: UseControlDeckResourcesOptions)
       const tasks: Array<Promise<unknown>> = [refreshSessions()];
       if (nextThreadId) {
         tasks.push(refreshDetail(nextThreadId));
+        refreshTranscript();
       }
       void Promise.all(tasks).catch(() => undefined);
     },
-    [refreshDetail, refreshSessions],
+    [refreshDetail, refreshSessions, refreshTranscript],
   );
 
   const refreshForEvents = useCallback(
@@ -134,6 +139,8 @@ export function useControlDeckResources(options: UseControlDeckResourcesOptions)
           "session.renamed",
           "session.deleted",
           "session.index.compacted",
+          "session.turn.completed",
+          "session.turn.failed",
         ].includes(event.type),
       );
       const shouldRefreshDetail =
@@ -152,12 +159,13 @@ export function useControlDeckResources(options: UseControlDeckResourcesOptions)
       }
       if (shouldRefreshDetail && nextThreadId) {
         tasks.push(refreshDetail(nextThreadId));
+        refreshTranscript();
       }
       if (tasks.length > 0) {
         void Promise.all(tasks).catch(() => undefined);
       }
     },
-    [refreshDetail, refreshSessions],
+    [refreshDetail, refreshSessions, refreshTranscript],
   );
 
   useRefreshCoordinator({
@@ -181,6 +189,7 @@ export function useControlDeckResources(options: UseControlDeckResourcesOptions)
     loadingDetail,
     lastSyncAt,
     selectedSummary,
+    transcriptRefreshToken,
     patchSelectedSession,
     removeSession,
     refreshCurrentView,

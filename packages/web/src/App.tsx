@@ -69,8 +69,9 @@ export function App() {
           loadingSessions={state.loadingSessions}
           onCopySessionId={(threadId) => void handleCopySessionId(threadId)}
           onDeleteSession={(threadId) => state.actions.delete(threadId)}
+          onConversationSettled={() => state.refreshCurrentView()}
           onExitFocusMode={() => paneLayout.setSessionFocusMode(false)}
-          onRefresh={() => void state.refreshSessions()}
+          onRefresh={() => void state.refreshCurrentView()}
           onRename={(name) => state.actions.rename(name)}
           onSearchChange={state.setSearch}
           onSelectSession={(threadId) => state.setSelectedId(threadId)}
@@ -83,6 +84,7 @@ export function App() {
           sessionPaneWidth={paneLayout.sessionPaneWidth}
           sessions={state.sessions}
           themeMode={theme.themeMode}
+          transcriptRefreshToken={state.transcriptRefreshToken}
           uiLanguage={uiLanguage}
         />
       </main>

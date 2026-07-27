@@ -80,7 +80,9 @@ export function useControlDeckState() {
     setNotice: ui.setNotice,
     lastSyncAt: resources.lastSyncAt,
     selectedSummary: resources.selectedSummary,
+    transcriptRefreshToken: resources.transcriptRefreshToken,
     refreshSessions: resources.refreshSessions,
+    refreshCurrentView: resources.refreshCurrentView,
     actions: actionState.actions,
   };
 }
