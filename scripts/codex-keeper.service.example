@@ -1,0 +1,15 @@
+[Unit]
+Description=Codex Keeper local web service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Work/PersonalCodes/Github/codex-keeper
+ExecStart=%h/Work/PersonalCodes/Github/codex-keeper/scripts/start-serve.sh
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target
