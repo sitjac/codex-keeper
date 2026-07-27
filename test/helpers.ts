@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { CodexTurnRunner } from "@codex-keeper/core";
 import { CodexKeeper } from "@codex-keeper/core";
 import type { EffectiveConfig } from "@codex-keeper/shared";
 import Database from "better-sqlite3";
@@ -238,21 +239,25 @@ export async function createManagerForTest(
   overrides: DeepPartial<EffectiveConfig> & {
     codexHome: string;
     stateDir: string;
+    turnRunner?: CodexTurnRunner;
   },
 ): Promise<CodexKeeper> {
   const workspaceRoot = path.dirname(overrides.codexHome);
   const configPath = path.join(workspaceRoot, ".config", "codex-keeper", "config.toml");
+  const { codexHome, stateDir, turnRunner, ...configOverrides } = overrides;
   const manager = await CodexKeeper.create({
     cwd: workspaceRoot,
     configPath,
     overrides: {
+      ...(configOverrides as Partial<EffectiveConfig>),
       general: {
-        codexHome: overrides.codexHome,
-        stateDir: overrides.stateDir,
+        ...(configOverrides as Partial<EffectiveConfig>).general,
+        codexHome,
+        stateDir,
       },
-      ...(overrides as Partial<EffectiveConfig>),
     },
     operator: "test",
+    turnRunner,
   });
   return manager;
 }

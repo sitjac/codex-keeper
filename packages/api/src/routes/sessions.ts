@@ -3,6 +3,7 @@ import {
   renameRequestSchema,
   sessionDetailQuerySchema,
   sessionListQuerySchema,
+  sessionMessageRequestSchema,
   sessionTranscriptQuerySchema,
 } from "@codex-keeper/shared";
 import type { FastifyInstance } from "fastify";
@@ -61,6 +62,28 @@ export function registerSessionRoutes(
   app.get("/api/v1/sessions/:id/history", async (request) => {
     const params = request.params as { id: string };
     return manager.getRenameHistory(params.id);
+  });
+
+  app.post("/api/v1/sessions/:id/messages", async (request) => {
+    const params = request.params as { id: string };
+    const body = sessionMessageRequestSchema.parse(
+      (request.body as Record<string, unknown> | undefined) ?? {},
+    );
+    try {
+      const result = await manager.continueSession(params.id, body);
+      eventLog.publish("session.turn.completed", {
+        threadId: params.id,
+        durationMs: result.durationMs,
+        exitCode: result.exitCode,
+      });
+      return result;
+    } catch (error) {
+      eventLog.publish("session.turn.failed", {
+        threadId: params.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   });
 
   app.post("/api/v1/sessions/:id/rename", async (request) => {

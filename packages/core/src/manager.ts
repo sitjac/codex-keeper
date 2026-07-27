@@ -10,6 +10,7 @@ import type {
   SessionDetail,
   SessionIndexSnapshot,
   SessionListQuery,
+  SessionMessageResponse,
   SessionSummary,
   SessionsResponse,
   SessionTranscript,
@@ -17,6 +18,8 @@ import type {
   WorkspaceSummary,
 } from "@codex-keeper/shared";
 import { SESSION_INDEX_FILENAME } from "@codex-keeper/shared";
+import type { CodexTurnRunner } from "./codex-runner.js";
+import { runCodexExecResume } from "./codex-runner.js";
 import { readCodexThreadStateSnapshot, updateCodexThreadTitle } from "./codex-state.js";
 import { loadConfigView, loadEffectiveConfig, writeUserConfig } from "./config.js";
 import { StateDatabase } from "./database.js";
@@ -41,6 +44,15 @@ const SCAN_FRESH_WINDOW_MS = 1_200;
 const TRANSCRIPT_CACHE_LIMIT = 24;
 const DEFERRED_CODEX_STATE_RETRY_DELAYS_MS = [250, 1500, 5000] as const;
 const DEFERRED_CODEX_STATE_BUSY_TIMEOUT_MS = 250;
+
+export class CodexKeeperRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+  }
+}
 
 type OfficialNameCandidate = {
   threadName: string;
@@ -133,9 +145,11 @@ export class CodexKeeper {
     scannedRollouts: 0,
     updatedSessions: 0,
   };
+  private readonly activeSessionTurns = new Map<string, Promise<SessionMessageResponse>>();
   private readonly cwd: string;
   private readonly configPath?: string;
   private readonly overrides?: Partial<EffectiveConfig>;
+  private readonly turnRunner: CodexTurnRunner;
 
   constructor(
     public config: EffectiveConfig,
@@ -145,11 +159,13 @@ export class CodexKeeper {
       cwd?: string;
       configPath?: string;
       overrides?: Partial<EffectiveConfig>;
+      turnRunner?: CodexTurnRunner;
     },
   ) {
     this.cwd = options?.cwd ?? process.cwd();
     this.configPath = options?.configPath;
     this.overrides = options?.overrides;
+    this.turnRunner = options?.turnRunner ?? runCodexExecResume;
   }
 
   static async create(options?: {
@@ -157,6 +173,7 @@ export class CodexKeeper {
     configPath?: string;
     overrides?: Partial<EffectiveConfig>;
     operator?: string;
+    turnRunner?: CodexTurnRunner;
   }): Promise<CodexKeeper> {
     const config = await loadEffectiveConfig({
       cwd: options?.cwd,
@@ -168,6 +185,7 @@ export class CodexKeeper {
       cwd: options?.cwd,
       configPath: options?.configPath,
       overrides: options?.overrides,
+      turnRunner: options?.turnRunner,
     });
   }
 
@@ -354,6 +372,56 @@ export class CodexKeeper {
     return paginateSessionTranscript(transcript, {
       ...options,
     });
+  }
+
+  async continueSession(
+    threadId: string,
+    request: { message: string },
+  ): Promise<SessionMessageResponse> {
+    const prompt = request.message.trim();
+    if (!prompt) {
+      throw new CodexKeeperRequestError("Message cannot be empty.", 400);
+    }
+    if (this.activeSessionTurns.has(threadId)) {
+      throw new CodexKeeperRequestError(`Session is already processing: ${threadId}`, 409);
+    }
+
+    const turn = this.runSessionTurn(threadId, prompt);
+    this.activeSessionTurns.set(threadId, turn);
+    try {
+      return await turn;
+    } finally {
+      if (this.activeSessionTurns.get(threadId) === turn) {
+        this.activeSessionTurns.delete(threadId);
+      }
+    }
+  }
+
+  private async runSessionTurn(threadId: string, prompt: string): Promise<SessionMessageResponse> {
+    const detail = await this.requireKnownSessionDetail(threadId);
+    const startedAt = Date.now();
+    const cwd = await this.resolveTurnCwd(detail.cwd);
+
+    try {
+      const result = await this.turnRunner({
+        codexHome: this.config.general.codexHome,
+        threadId,
+        prompt,
+        cwd,
+        sandboxMode: "workspace-write",
+      });
+
+      await this.refreshAfterSessionTurn(detail.rolloutPath);
+      return {
+        threadId,
+        completedAt: toUtcIso(),
+        durationMs: Date.now() - startedAt,
+        exitCode: result.exitCode,
+      };
+    } catch (error) {
+      await this.refreshAfterSessionTurn(detail.rolloutPath);
+      throw error;
+    }
   }
 
   async rename(
@@ -621,6 +689,29 @@ export class CodexKeeper {
 
   private invalidateTranscriptCache(rolloutPath: string): void {
     this.transcriptCache.delete(rolloutPath);
+  }
+
+  private async refreshAfterSessionTurn(rolloutPath: string): Promise<void> {
+    this.invalidateTranscriptCache(rolloutPath);
+    this.lastScanCompletedAt = 0;
+    await this.scan();
+  }
+
+  private async resolveTurnCwd(candidate?: string): Promise<string> {
+    const candidates = [candidate, this.cwd, process.cwd()].filter((value): value is string =>
+      Boolean(value),
+    );
+    for (const value of candidates) {
+      try {
+        const stat = await fs.stat(value);
+        if (stat.isDirectory()) {
+          return value;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return process.cwd();
   }
 
   private async readSessionIndexSnapshot(): Promise<SessionIndexSnapshot> {

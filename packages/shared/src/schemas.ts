@@ -6,6 +6,7 @@ import type {
   RenameRequest,
   SessionDetailQuery,
   SessionListQuery,
+  SessionMessageRequest,
   SessionTranscriptQuery,
 } from "./types.js";
 
@@ -86,6 +87,10 @@ export const sessionTranscriptQuerySchema: z.ZodType<SessionTranscriptQuery> = z
 
 export const renameRequestSchema: z.ZodType<RenameRequest> = z.object({
   name: z.string().trim().min(1),
+});
+
+export const sessionMessageRequestSchema: z.ZodType<SessionMessageRequest> = z.object({
+  message: z.string().trim().min(1).max(64_000),
 });
 
 export const configUpdateRequestSchema: z.ZodType<ConfigUpdateResponse["config"]> =

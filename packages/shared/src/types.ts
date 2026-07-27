@@ -42,7 +42,9 @@ export type ApiEventType =
   | "scan.completed"
   | "session.renamed"
   | "session.deleted"
-  | "session.index.compacted";
+  | "session.index.compacted"
+  | "session.turn.completed"
+  | "session.turn.failed";
 
 export interface ApiEventRecord {
   cursor: number;
@@ -139,6 +141,17 @@ export interface SessionTranscriptQuery {
 
 export interface RenameRequest {
   name: string;
+}
+
+export interface SessionMessageRequest {
+  message: string;
+}
+
+export interface SessionMessageResponse {
+  threadId: string;
+  completedAt: string;
+  durationMs: number;
+  exitCode: number;
 }
 
 export interface SessionDeleteResult {

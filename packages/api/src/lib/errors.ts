@@ -3,6 +3,17 @@ export function toErrorPayload(error: unknown): {
   body: Record<string, unknown>;
 } {
   if (error instanceof Error) {
+    const statusCode = (error as Error & { statusCode?: unknown }).statusCode;
+    if (typeof statusCode === "number" && Number.isInteger(statusCode)) {
+      return {
+        statusCode,
+        body: {
+          error: statusCode === 409 ? "conflict" : "request_failed",
+          message: error.message,
+        },
+      };
+    }
+
     if (error.message.startsWith("Unknown session:")) {
       return {
         statusCode: 404,
