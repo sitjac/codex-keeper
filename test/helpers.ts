@@ -180,6 +180,7 @@ export async function writeCodexStateFixture(params: {
     rolloutPath: string;
     cwd: string;
     title: string;
+    name?: string;
     source?: string;
     archived?: boolean;
     updatedAt?: Date;
@@ -199,6 +200,7 @@ export async function writeCodexStateFixture(params: {
         model_provider TEXT NOT NULL,
         cwd TEXT NOT NULL,
         title TEXT NOT NULL,
+        name TEXT,
         sandbox_policy TEXT NOT NULL,
         approval_mode TEXT NOT NULL,
         tokens_used INTEGER NOT NULL DEFAULT 0,
@@ -210,9 +212,9 @@ export async function writeCodexStateFixture(params: {
     `);
     const insert = db.prepare(
       `INSERT INTO threads (
-        id, rollout_path, created_at, updated_at, source, model_provider, cwd, title,
+        id, rollout_path, created_at, updated_at, source, model_provider, cwd, title, name,
         sandbox_policy, approval_mode, archived, updated_at_ms
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     for (const thread of params.threads) {
       const updatedAtMs = (thread.updatedAt ?? new Date("2026-04-04T12:10:00.000Z")).getTime();
@@ -225,6 +227,7 @@ export async function writeCodexStateFixture(params: {
         "OpenAI",
         thread.cwd,
         thread.title,
+        thread.name ?? null,
         "{}",
         "never",
         thread.archived ? 1 : 0,

@@ -159,9 +159,10 @@ describe("rollout ingest", () => {
       const db = new Database(dbPath, { readonly: true, fileMustExist: true });
       try {
         const row = db
-          .prepare("SELECT title FROM threads WHERE id = ?")
-          .get("thread-codex-state-title") as { title: string };
+          .prepare("SELECT title, name FROM threads WHERE id = ?")
+          .get("thread-codex-state-title") as { title: string; name: string };
         expect(row.title).toBe("手动修改后的标题");
+        expect(row.name).toBe("手动修改后的标题");
       } finally {
         db.close();
       }
@@ -204,10 +205,11 @@ describe("rollout ingest", () => {
       try {
         db.prepare(
           `UPDATE threads
-           SET title = ?, updated_at = ?, updated_at_ms = ?
+           SET title = ?, name = ?, updated_at = ?, updated_at_ms = ?
            WHERE id = ?`,
         ).run(
           "自动生成旧标题",
+          null,
           Math.floor(new Date("2026-04-04T12:45:00.000Z").getTime() / 1000),
           new Date("2026-04-04T12:45:00.000Z").getTime(),
           "thread-manual-rename-persisted",
@@ -223,6 +225,42 @@ describe("rollout ingest", () => {
       await manager.scan();
       const detail = await manager.getSessionDetail("thread-manual-rename-persisted");
       expect(detail?.officialName).toBe("手动固定标题");
+    } finally {
+      await manager.close();
+    }
+  });
+
+  test("prefers Codex state manual names over generated titles", async () => {
+    const temp = await createTempWorkspace();
+    const rolloutPath = await writeRolloutFixture({
+      codexHome: temp.codexHome,
+      threadId: "thread-codex-state-name",
+      userMessage: "检查 CLI 手动命名",
+      lastAgentMessage: "应优先使用 name 字段。",
+      threadName: "Rollout title",
+    });
+    const manager = await createManagerForTest({
+      codexHome: temp.codexHome,
+      stateDir: temp.stateDir,
+    });
+
+    try {
+      await writeCodexStateFixture({
+        codexHome: temp.codexHome,
+        threads: [
+          {
+            id: "thread-codex-state-name",
+            rolloutPath,
+            cwd: "/tmp/project-alpha",
+            title: "Generated state title",
+            name: "Manual state name",
+          },
+        ],
+      });
+
+      await manager.scan();
+      const detail = await manager.getSessionDetail("thread-codex-state-name");
+      expect(detail?.officialName).toBe("Manual state name");
     } finally {
       await manager.close();
     }

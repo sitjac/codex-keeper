@@ -8,6 +8,7 @@ import { expandHome, normalizeWhitespace, stripControl } from "./util.js";
 export interface CodexThreadState {
   threadId: string;
   title?: string;
+  name?: string;
   updatedAt?: string;
   archived: boolean;
   internal: boolean;
@@ -92,20 +93,19 @@ async function findLatestCodexStateDb(codexHome: string): Promise<string | undef
   return candidates[0] ? path.join(root, candidates[0].entry) : undefined;
 }
 
-function hasThreadsTitleSchema(db: Database.Database): boolean {
+function getThreadsColumns(db: Database.Database): Set<string> | undefined {
   const table = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'threads'")
     .get();
   if (!table) {
-    return false;
+    return undefined;
   }
 
-  const columns = new Set(
-    (db.prepare("PRAGMA table_info(threads)").all() as Array<Record<string, unknown>>).map(
-      (row) => row.name,
+  return new Set(
+    (db.prepare("PRAGMA table_info(threads)").all() as Array<Record<string, unknown>>).map((row) =>
+      String(row.name),
     ),
   );
-  return columns.has("id") && columns.has("title");
 }
 
 export async function readCodexThreadStateSnapshot(
@@ -120,13 +120,19 @@ export async function readCodexThreadStateSnapshot(
   try {
     db = new Database(dbPath, { readonly: true, fileMustExist: true });
     db.pragma("busy_timeout = 1000");
-    if (!hasThreadsTitleSchema(db)) {
+    const columns = getThreadsColumns(db);
+    if (!columns?.has("id") || !columns.has("title")) {
       return new Map();
     }
+    const titleExpression = columns.has("name")
+      ? "COALESCE(NULLIF(name, ''), title) AS title"
+      : "title";
+    const nameExpression = columns.has("name") ? "name" : "NULL AS name";
 
     const rows = db
       .prepare(
-        `SELECT id, title, updated_at, updated_at_ms, archived, source, cwd, rollout_path
+        `SELECT id, ${titleExpression}, ${nameExpression}, updated_at, updated_at_ms,
+                archived, source, cwd, rollout_path
          FROM threads`,
       )
       .all() as Array<Record<string, unknown>>;
@@ -139,6 +145,7 @@ export async function readCodexThreadStateSnapshot(
       snapshot.set(row.id, {
         threadId: row.id,
         title: normalizeTitle(row.title),
+        name: normalizeTitle(row.name),
         updatedAt: timestampToIso(row.updated_at_ms) ?? timestampToIso(row.updated_at),
         archived: row.archived === 1 || row.archived === true,
         internal: isInternalCodexThreadSource(row.source),
@@ -186,7 +193,8 @@ export async function updateCodexThreadTitle(params: {
   try {
     db = new Database(dbPath, { fileMustExist: true });
     db.pragma(`busy_timeout = ${Math.max(0, Math.floor(params.busyTimeoutMs ?? 5000))}`);
-    if (!hasThreadsTitleSchema(db)) {
+    const columns = getThreadsColumns(db);
+    if (!columns?.has("id") || !columns.has("title")) {
       return {
         dbPath,
         updated: false,
@@ -195,9 +203,10 @@ export async function updateCodexThreadTitle(params: {
       };
     }
 
-    const current = db.prepare("SELECT title FROM threads WHERE id = ?").get(params.threadId) as
-      | { title?: string }
-      | undefined;
+    const hasName = columns.has("name");
+    const current = db
+      .prepare(`SELECT title, ${hasName ? "name" : "NULL AS name"} FROM threads WHERE id = ?`)
+      .get(params.threadId) as { title?: string; name?: string } | undefined;
     if (!current) {
       return {
         dbPath,
@@ -206,7 +215,9 @@ export async function updateCodexThreadTitle(params: {
         skippedReason: "thread_not_found",
       };
     }
-    if (normalizeTitle(current.title) === title) {
+    const currentTitle = normalizeTitle(current.title);
+    const currentName = normalizeTitle(current.name);
+    if (currentTitle === title && (!hasName || currentName === title)) {
       return {
         dbPath,
         updated: false,
@@ -217,13 +228,21 @@ export async function updateCodexThreadTitle(params: {
 
     const updatedAtMs = Date.parse(params.updatedAt ?? new Date().toISOString());
     const safeUpdatedAtMs = Number.isFinite(updatedAtMs) ? updatedAtMs : Date.now();
-    const result = db
-      .prepare(
-        `UPDATE threads
-         SET title = ?, updated_at = ?, updated_at_ms = ?
-         WHERE id = ?`,
-      )
-      .run(title, Math.floor(safeUpdatedAtMs / 1000), safeUpdatedAtMs, params.threadId);
+    const result = hasName
+      ? db
+          .prepare(
+            `UPDATE threads
+             SET title = ?, name = ?, updated_at = ?, updated_at_ms = ?
+             WHERE id = ?`,
+          )
+          .run(title, title, Math.floor(safeUpdatedAtMs / 1000), safeUpdatedAtMs, params.threadId)
+      : db
+          .prepare(
+            `UPDATE threads
+             SET title = ?, updated_at = ?, updated_at_ms = ?
+             WHERE id = ?`,
+          )
+          .run(title, Math.floor(safeUpdatedAtMs / 1000), safeUpdatedAtMs, params.threadId);
 
     return {
       dbPath,
