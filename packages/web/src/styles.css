@@ -3,6 +3,7 @@
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
     "PingFang SC", "Hiragino Sans GB", sans-serif;
   --font-mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+  color-scheme: light;
   --bg: #f6f7f8;
   --panel: #ffffff;
   --panel-muted: #f1f3f5;
@@ -19,6 +20,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #111418;
   --panel: #181c22;
   --panel-muted: #20262e;
@@ -32,6 +34,8 @@
   --danger: #ff8f83;
   --danger-soft: #351e1b;
   --shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+  --scrollbar-thumb: #4c5563;
+  --scrollbar-thumb-hover: #5f6978;
 }
 
 * {
@@ -50,6 +54,36 @@ body {
   color: var(--text);
   background: var(--bg);
   font-family: var(--font-ui);
+}
+
+:root[data-theme="dark"],
+:root[data-theme="dark"] * {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+:root[data-theme="dark"] *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:root[data-theme="dark"] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-color: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+:root[data-theme="dark"] *::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 button,
