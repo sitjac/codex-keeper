@@ -33,6 +33,8 @@ type SessionRow = {
   last_agent_message: string | null;
   task_complete_count: number;
   token_total: number;
+  rollout_thread_name: string | null;
+  rollout_thread_name_updated_at: string | null;
   latest_official_name: string | null;
   latest_official_name_updated_at: string | null;
   status_estimate: string | null;
@@ -86,8 +88,8 @@ function toMaterializedSession(row: SessionRow): MaterializedSession {
     projectName: row.project_name ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
-    threadName: row.latest_official_name ?? undefined,
-    threadNameUpdatedAt: row.latest_official_name_updated_at ?? undefined,
+    threadName: row.rollout_thread_name ?? undefined,
+    threadNameUpdatedAt: row.rollout_thread_name_updated_at ?? undefined,
     modelProvider: row.model_provider ?? undefined,
     model: row.model ?? undefined,
     firstUserMessage: row.first_user_message ?? undefined,
@@ -134,6 +136,8 @@ export class StateDatabase {
         last_agent_message TEXT,
         task_complete_count INTEGER NOT NULL DEFAULT 0,
         token_total INTEGER NOT NULL DEFAULT 0,
+        rollout_thread_name TEXT,
+        rollout_thread_name_updated_at TEXT,
         latest_official_name TEXT,
         latest_official_name_updated_at TEXT,
         status_estimate TEXT,
@@ -183,6 +187,8 @@ export class StateDatabase {
       );
     `);
     this.ensureColumn("sessions", "archived_hint", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("sessions", "rollout_thread_name", "TEXT");
+    this.ensureColumn("sessions", "rollout_thread_name_updated_at", "TEXT");
   }
 
   private ensureColumn(table: string, column: string, definition: string): void {
@@ -248,6 +254,10 @@ export class StateDatabase {
 
   upsertSession(params: {
     session: MaterializedSession;
+    officialName?: {
+      threadName: string;
+      updatedAt?: string;
+    };
     revision: SessionRevision;
     cursor: {
       rolloutPath: string;
@@ -257,7 +267,9 @@ export class StateDatabase {
       lastScanAt?: string;
     };
   }): void {
-    const { session, revision, cursor } = params;
+    const { session, officialName, revision, cursor } = params;
+    const nextOfficialName = officialName?.threadName ?? session.threadName;
+    const nextOfficialNameUpdatedAt = officialName?.updatedAt ?? session.threadNameUpdatedAt;
     const transaction = this.db.transaction(() => {
       this.db
         .prepare(
@@ -265,8 +277,9 @@ export class StateDatabase {
             thread_id, rollout_path, cwd, project_name, created_at, updated_at,
             model_provider, model, first_user_message, last_user_message,
             last_agent_message, task_complete_count, token_total,
+            rollout_thread_name, rollout_thread_name_updated_at,
             latest_official_name, latest_official_name_updated_at, archived_hint
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(thread_id) DO UPDATE SET
             rollout_path = excluded.rollout_path,
             cwd = excluded.cwd,
@@ -280,6 +293,11 @@ export class StateDatabase {
             last_agent_message = COALESCE(excluded.last_agent_message, sessions.last_agent_message),
             task_complete_count = excluded.task_complete_count,
             token_total = excluded.token_total,
+            rollout_thread_name = COALESCE(excluded.rollout_thread_name, sessions.rollout_thread_name),
+            rollout_thread_name_updated_at = COALESCE(
+              excluded.rollout_thread_name_updated_at,
+              sessions.rollout_thread_name_updated_at
+            ),
             latest_official_name = COALESCE(excluded.latest_official_name, sessions.latest_official_name),
             latest_official_name_updated_at = COALESCE(
               excluded.latest_official_name_updated_at,
@@ -303,6 +321,8 @@ export class StateDatabase {
           session.tokenTotal,
           session.threadName ?? null,
           session.threadNameUpdatedAt ?? null,
+          nextOfficialName ?? null,
+          nextOfficialNameUpdatedAt ?? null,
           session.archivedHint ? 1 : 0,
         );
 

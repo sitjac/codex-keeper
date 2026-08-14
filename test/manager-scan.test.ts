@@ -108,6 +108,54 @@ describe("manager scan coalescing", () => {
     expect(performScanSpy).not.toHaveBeenCalled();
   });
 
+  it("reuses persisted rollout titles without rereading unchanged rollout files", async () => {
+    const workspace = await createTempWorkspace();
+    const firstManager = await createManagerForTest({
+      codexHome: workspace.codexHome,
+      stateDir: workspace.stateDir,
+    });
+    managers.push(firstManager);
+
+    const rolloutPath = await writeRolloutFixture({
+      codexHome: workspace.codexHome,
+      threadId: "thread-persisted-rollout-title",
+      userMessage: "缓存 rollout 标题",
+      lastAgentMessage: "标题应从本地状态复用。",
+      threadName: "Persisted rollout title",
+    });
+
+    await firstManager.scan();
+    firstManager.db.updateOfficialName(
+      "thread-persisted-rollout-title",
+      "Stale cached title",
+      "2026-04-04T12:30:00.000Z",
+    );
+    await firstManager.close();
+    managers.pop();
+
+    const manager = await createManagerForTest({
+      codexHome: workspace.codexHome,
+      stateDir: workspace.stateDir,
+    });
+    managers.push(manager);
+
+    const originalReadFile = fs.readFile;
+    vi.spyOn(fs, "readFile").mockImplementation(((file, ...args) => {
+      if (file === rolloutPath) {
+        throw new Error("unexpected rollout reread");
+      }
+      return originalReadFile(file, ...args);
+    }) as typeof fs.readFile);
+
+    await manager.scan();
+
+    await expect(manager.getSessionDetail("thread-persisted-rollout-title")).resolves.toMatchObject(
+      {
+        officialName: "Persisted rollout title",
+      },
+    );
+  });
+
   it("reuses cached transcript parsing across pages until the rollout changes", async () => {
     const workspace = await createTempWorkspace();
     const manager = await createManagerForTest({

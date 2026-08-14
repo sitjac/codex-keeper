@@ -504,11 +504,32 @@ export async function ingestRolloutFile(params: {
 }
 
 export async function readLatestThreadNameUpdate(rolloutPath: string): Promise<ThreadNameUpdate> {
-  const state = await readRolloutQuickState(rolloutPath);
-  return {
-    threadName: state.threadName,
-    updatedAt: state.updatedAt,
-  };
+  const raw = await fs.readFile(rolloutPath, "utf8");
+  const latest: ThreadNameUpdate = {};
+
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line.includes("thread_name_updated")) {
+      continue;
+    }
+
+    try {
+      const event = JSON.parse(line) as RolloutEvent;
+      const payload = event.payload ?? {};
+      if (event.type !== "event_msg" || payload.type !== "thread_name_updated") {
+        continue;
+      }
+      const threadName = normalizeThreadName(payload.thread_name);
+      if (!threadName) {
+        continue;
+      }
+      latest.threadName = threadName;
+      latest.updatedAt = event.timestamp;
+    } catch {
+      continue;
+    }
+  }
+
+  return latest;
 }
 
 export async function readRolloutQuickState(rolloutPath: string): Promise<RolloutQuickState> {
@@ -516,7 +537,7 @@ export async function readRolloutQuickState(rolloutPath: string): Promise<Rollou
   const latest: RolloutQuickState = {};
 
   for (const line of raw.split(/\r?\n/)) {
-    if (line.trim().length === 0) {
+    if (!line.includes("session_meta") && !line.includes("thread_name_updated")) {
       continue;
     }
 

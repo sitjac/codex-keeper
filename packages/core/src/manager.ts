@@ -24,6 +24,7 @@ import { readCodexThreadStateSnapshot, updateCodexThreadTitle } from "./codex-st
 import { loadConfigView, loadEffectiveConfig, writeUserConfig } from "./config.js";
 import { StateDatabase } from "./database.js";
 import { buildSessionRevision } from "./revision.js";
+import type { ThreadNameUpdate } from "./rollout.js";
 import {
   appendThreadNameUpdatedEvent,
   discoverRolloutFiles,
@@ -131,6 +132,14 @@ export class CodexKeeper {
     mtimeMs: number;
     snapshot: SessionIndexSnapshot;
   };
+  private readonly rolloutThreadNameCache = new Map<
+    string,
+    {
+      size: number;
+      mtimeMs: number;
+      update: ThreadNameUpdate;
+    }
+  >();
   private readonly transcriptCache = new Map<
     string,
     {
@@ -208,6 +217,7 @@ export class CodexKeeper {
       overrides: this.overrides,
     });
     this.sessionIndexCache = undefined;
+    this.rolloutThreadNameCache.clear();
     this.lastScanCompletedAt = 0;
   }
 
@@ -266,23 +276,35 @@ export class CodexKeeper {
       }
 
       const indexedName = snapshot.latestByThreadId.get(result.session.threadId);
-      const quickName = await readLatestThreadNameUpdate(rolloutPath);
       const renameState = this.db.getRenameState(result.session.threadId);
       const manualName =
         renameState?.lastAppliedSource === "manual" ? renameState.lastAppliedName : undefined;
+      let rolloutName: ThreadNameUpdate | undefined = result.session.threadName
+        ? {
+            threadName: result.session.threadName,
+            updatedAt: result.session.threadNameUpdatedAt,
+          }
+        : undefined;
+      const needsRolloutTitle = !rolloutName && !manualName && !codexState?.title;
+      if (needsRolloutTitle) {
+        const quickName = await this.readCachedLatestThreadNameUpdate(rolloutPath, stat);
+        rolloutName = quickName.threadName ? quickName : undefined;
+      }
+      if (rolloutName?.threadName) {
+        result.session.threadName = rolloutName.threadName;
+        result.session.threadNameUpdatedAt = rolloutName.updatedAt;
+      }
       const officialName = resolveOfficialName({
         manualName,
         manualUpdatedAt: renameState?.lastAppliedAt,
         codexStateName: codexState?.title,
         codexStateUpdatedAt: codexState?.updatedAt,
-        rolloutName: quickName.threadName,
-        rolloutUpdatedAt: quickName.updatedAt,
+        rolloutName: rolloutName?.threadName,
+        rolloutUpdatedAt: rolloutName?.updatedAt,
         indexedName: indexedName?.threadName,
         indexedUpdatedAt: indexedName?.updatedAt,
       });
       if (officialName) {
-        result.session.threadName = officialName.threadName;
-        result.session.threadNameUpdatedAt = officialName.updatedAt;
         preserveThreadIds.add(result.session.threadId);
       }
 
@@ -297,6 +319,7 @@ export class CodexKeeper {
       );
       this.db.upsertSession({
         session: result.session,
+        officialName,
         revision,
         cursor: result.cursor,
       });
@@ -685,6 +708,24 @@ export class CodexKeeper {
     }
 
     return transcript;
+  }
+
+  private async readCachedLatestThreadNameUpdate(
+    rolloutPath: string,
+    stat: { size: number; mtimeMs: number },
+  ): Promise<ThreadNameUpdate> {
+    const cached = this.rolloutThreadNameCache.get(rolloutPath);
+    if (cached && cached.size === stat.size && cached.mtimeMs === stat.mtimeMs) {
+      return cached.update;
+    }
+
+    const update = await readLatestThreadNameUpdate(rolloutPath);
+    this.rolloutThreadNameCache.set(rolloutPath, {
+      size: stat.size,
+      mtimeMs: stat.mtimeMs,
+      update,
+    });
+    return update;
   }
 
   private invalidateTranscriptCache(rolloutPath: string): void {
