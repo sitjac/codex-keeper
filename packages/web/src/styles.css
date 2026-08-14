@@ -703,14 +703,91 @@ pre {
   font-size: 0.92em;
 }
 
-.message-markdown .markdown-code-block {
+.message-markdown .markdown-code-block-shell {
   max-width: 100%;
   margin: 0 0 10px;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 12px;
   background: var(--panel-muted);
+}
+
+.message-markdown .markdown-code-block-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 6px 8px 0 12px;
+}
+
+.message-markdown .markdown-code-language {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.markdown-block-copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 5px;
+  padding: 2px 5px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.markdown-block-copy-button:hover:not(:disabled) {
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 84%, transparent);
+}
+
+.markdown-block-copy-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.markdown-block-copy-button svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.message-markdown .markdown-copyable-block {
+  max-width: 100%;
+  margin: 0 0 10px;
+}
+
+.message-markdown .markdown-copyable-block-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 4px;
+}
+
+.message-markdown .markdown-copyable-block-actions .markdown-block-copy-button {
+  margin-left: 0;
+}
+
+.message-markdown .markdown-copyable-block blockquote,
+.message-markdown .markdown-copyable-block .markdown-table-scroller {
+  margin-bottom: 0;
+}
+
+.message-markdown .markdown-code-block {
+  margin: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  padding: 6px 12px 10px;
+  background: transparent;
 }
 
 .message-markdown .markdown-code-block code {

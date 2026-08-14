@@ -11,6 +11,8 @@ import type { SessionDetail, SessionTranscriptPage } from "./types.js";
 const TRANSCRIPT_PAGE_SIZE = 30;
 const COPY_FEEDBACK_MS = 1_600;
 
+type CopyState = "copied" | "failed" | "idle";
+
 type MarkdownBlock =
   | { type: "blockquote"; lines: string[] }
   | { type: "code"; content: string; language?: string }
@@ -253,20 +255,21 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return nodes;
 }
 
-function renderBlock(block: MarkdownBlock, index: number): ReactNode {
+function renderBlock(block: MarkdownBlock, index: number, uiLanguage: UiLanguage): ReactNode {
   switch (block.type) {
     case "blockquote":
       return (
-        <blockquote key={index}>
-          {renderInline(block.lines.join("\n"), `quote-${index}`)}
-        </blockquote>
+        <CopyableMarkdownBlock
+          idleLabel={t(uiLanguage, "copyBlock")}
+          key={index}
+          text={formatBlockquoteCopyText(block)}
+          uiLanguage={uiLanguage}
+        >
+          <blockquote>{renderInline(block.lines.join("\n"), `quote-${index}`)}</blockquote>
+        </CopyableMarkdownBlock>
       );
     case "code":
-      return (
-        <pre className="markdown-code-block" key={index}>
-          <code data-language={block.language}>{block.content}</code>
-        </pre>
-      );
+      return <MarkdownCodeBlock block={block} key={index} uiLanguage={uiLanguage} />;
     case "heading":
       if (block.level === 1) {
         return <h3 key={index}>{renderInline(block.content, `heading-${index}`)}</h3>;
@@ -289,32 +292,51 @@ function renderBlock(block: MarkdownBlock, index: number): ReactNode {
       return <p key={index}>{renderInline(block.lines.join("\n"), `paragraph-${index}`)}</p>;
     case "table":
       return (
-        <div className="markdown-table-scroller" key={index}>
-          <table>
-            <thead>
-              <tr>
-                {block.header.map((cell, cellIndex) => (
-                  <th key={cellIndex}>{renderInline(cell, `table-${index}-head-${cellIndex}`)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {block.rows.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {row.map((cell, cellIndex) => (
-                    <td key={cellIndex}>
-                      {renderInline(cell, `table-${index}-${rowIndex}-${cellIndex}`)}
-                    </td>
+        <CopyableMarkdownBlock
+          idleLabel={t(uiLanguage, "copyBlock")}
+          key={index}
+          text={formatTableCopyText(block)}
+          uiLanguage={uiLanguage}
+        >
+          <div className="markdown-table-scroller">
+            <table>
+              <thead>
+                <tr>
+                  {block.header.map((cell, cellIndex) => (
+                    <th key={cellIndex}>
+                      {renderInline(cell, `table-${index}-head-${cellIndex}`)}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {block.rows.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {row.map((cell, cellIndex) => (
+                      <td key={cellIndex}>
+                        {renderInline(cell, `table-${index}-${rowIndex}-${cellIndex}`)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CopyableMarkdownBlock>
       );
     default:
       return null;
   }
+}
+
+function formatBlockquoteCopyText(block: Extract<MarkdownBlock, { type: "blockquote" }>): string {
+  return block.lines.map((line) => `> ${line}`).join("\n");
+}
+
+function formatTableCopyText(block: Extract<MarkdownBlock, { type: "table" }>): string {
+  const rowText = (cells: string[]) => `| ${cells.join(" | ")} |`;
+  const divider = block.header.map(() => "---");
+  return [block.header, divider, ...block.rows].map(rowText).join("\n");
 }
 
 function CopyIcon() {
@@ -334,21 +356,8 @@ function CheckIcon() {
   );
 }
 
-function MarkdownMessage(props: { content: string; uiLanguage: UiLanguage }) {
-  const blocks = useMemo(() => parseMarkdownBlocks(props.content), [props.content]);
-
-  return (
-    <div className="turn-body message-markdown">
-      <div className="message-markdown-content">{blocks.map(renderBlock)}</div>
-      <div className="turn-footer">
-        <MessageCopyButton markdownContent={props.content} uiLanguage={props.uiLanguage} />
-      </div>
-    </div>
-  );
-}
-
-function MessageCopyButton(props: { markdownContent: string; uiLanguage: UiLanguage }) {
-  const [copyState, setCopyState] = useState<"copied" | "failed" | "idle">("idle");
+function useClipboardFeedback() {
+  const [copyState, setCopyState] = useState<CopyState>("idle");
 
   useEffect(() => {
     if (copyState === "idle") {
@@ -364,6 +373,104 @@ function MessageCopyButton(props: { markdownContent: string; uiLanguage: UiLangu
     };
   }, [copyState]);
 
+  const copyText = async (text: string) => {
+    try {
+      await copyTextToClipboard(text);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  };
+
+  return { copyState, copyText };
+}
+
+function MarkdownCodeBlock(props: {
+  block: Extract<MarkdownBlock, { type: "code" }>;
+  uiLanguage: UiLanguage;
+}) {
+  const language = props.block.language?.trim();
+
+  return (
+    <div className="markdown-code-block-shell">
+      <div className="markdown-code-block-toolbar">
+        {language ? <span className="markdown-code-language">{language}</span> : null}
+        <BlockCopyButton
+          idleLabel={t(props.uiLanguage, "copyCodeBlock")}
+          text={props.block.content}
+          uiLanguage={props.uiLanguage}
+        />
+      </div>
+      <pre className="markdown-code-block">
+        <code data-language={language}>{props.block.content}</code>
+      </pre>
+    </div>
+  );
+}
+
+function BlockCopyButton(props: { idleLabel: string; text: string; uiLanguage: UiLanguage }) {
+  const { copyState, copyText } = useClipboardFeedback();
+  const label =
+    copyState === "copied"
+      ? t(props.uiLanguage, "copiedMessage")
+      : copyState === "failed"
+        ? t(props.uiLanguage, "copyMessageFailed")
+        : props.idleLabel;
+  const visibleLabel = copyState === "idle" ? t(props.uiLanguage, "copyMessage") : label;
+
+  return (
+    <button
+      aria-label={label}
+      className="markdown-block-copy-button"
+      disabled={!props.text}
+      onClick={() => void copyText(props.text)}
+      title={label}
+      type="button"
+    >
+      {copyState === "copied" ? <CheckIcon /> : <CopyIcon />}
+      <span>{visibleLabel}</span>
+    </button>
+  );
+}
+
+function CopyableMarkdownBlock(props: {
+  children: ReactNode;
+  idleLabel: string;
+  text: string;
+  uiLanguage: UiLanguage;
+}) {
+  return (
+    <div className="markdown-copyable-block">
+      <div className="markdown-copyable-block-actions">
+        <BlockCopyButton
+          idleLabel={props.idleLabel}
+          text={props.text}
+          uiLanguage={props.uiLanguage}
+        />
+      </div>
+      {props.children}
+    </div>
+  );
+}
+
+function MarkdownMessage(props: { content: string; uiLanguage: UiLanguage }) {
+  const blocks = useMemo(() => parseMarkdownBlocks(props.content), [props.content]);
+
+  return (
+    <div className="turn-body message-markdown">
+      <div className="message-markdown-content">
+        {blocks.map((block, index) => renderBlock(block, index, props.uiLanguage))}
+      </div>
+      <div className="turn-footer">
+        <MessageCopyButton markdownContent={props.content} uiLanguage={props.uiLanguage} />
+      </div>
+    </div>
+  );
+}
+
+function MessageCopyButton(props: { markdownContent: string; uiLanguage: UiLanguage }) {
+  const { copyState, copyText } = useClipboardFeedback();
+
   const label =
     copyState === "copied"
       ? t(props.uiLanguage, "copiedMessage")
@@ -372,12 +479,7 @@ function MessageCopyButton(props: { markdownContent: string; uiLanguage: UiLangu
         : t(props.uiLanguage, "copyMarkdownMessage");
 
   const handleCopy = async () => {
-    try {
-      await copyTextToClipboard(props.markdownContent);
-      setCopyState("copied");
-    } catch {
-      setCopyState("failed");
-    }
+    await copyText(props.markdownContent);
   };
 
   return (
