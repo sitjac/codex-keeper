@@ -6,7 +6,7 @@ import { transcriptTone } from "./browser-utils.js";
 import { copyTextToClipboard } from "./clipboard.js";
 import type { UiLanguage } from "./i18n.js";
 import { t, transcriptRoleLabel } from "./i18n.js";
-import type { SessionDetail, SessionTranscriptPage } from "./types.js";
+import type { SessionDetail, SessionTranscriptAttachment, SessionTranscriptPage } from "./types.js";
 
 const TRANSCRIPT_PAGE_SIZE = 30;
 const COPY_FEEDBACK_MS = 1_600;
@@ -339,6 +339,25 @@ function formatTableCopyText(block: Extract<MarkdownBlock, { type: "table" }>): 
   return [block.header, divider, ...block.rows].map(rowText).join("\n");
 }
 
+function basenameFromPath(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed.split(/[\\/]/).filter(Boolean).pop();
+}
+
+function attachmentLabel(attachment: SessionTranscriptAttachment, uiLanguage: UiLanguage): string {
+  return (
+    attachment.name?.trim() || basenameFromPath(attachment.path) || t(uiLanguage, "imageAttachment")
+  );
+}
+
 function CopyIcon() {
   return (
     <svg aria-hidden="true" className="turn-copy-icon" focusable="false" viewBox="0 0 24 24">
@@ -453,7 +472,12 @@ function CopyableMarkdownBlock(props: {
   );
 }
 
-function MarkdownMessage(props: { content: string; uiLanguage: UiLanguage }) {
+function MarkdownMessage(props: {
+  attachments?: SessionTranscriptAttachment[];
+  content: string;
+  onPreviewAttachment: (attachment: SessionTranscriptAttachment) => void;
+  uiLanguage: UiLanguage;
+}) {
   const blocks = useMemo(() => parseMarkdownBlocks(props.content), [props.content]);
 
   return (
@@ -461,8 +485,92 @@ function MarkdownMessage(props: { content: string; uiLanguage: UiLanguage }) {
       <div className="message-markdown-content">
         {blocks.map((block, index) => renderBlock(block, index, props.uiLanguage))}
       </div>
+      {props.attachments?.length ? (
+        <div className="message-attachments">
+          {props.attachments.map((attachment, index) => (
+            <AttachmentPreview
+              attachment={attachment}
+              key={`${attachment.name ?? attachment.path ?? "attachment"}-${index}`}
+              onPreview={props.onPreviewAttachment}
+              uiLanguage={props.uiLanguage}
+            />
+          ))}
+        </div>
+      ) : null}
       <div className="turn-footer">
         <MessageCopyButton markdownContent={props.content} uiLanguage={props.uiLanguage} />
+      </div>
+    </div>
+  );
+}
+
+function AttachmentPreview(props: {
+  attachment: SessionTranscriptAttachment;
+  onPreview: (attachment: SessionTranscriptAttachment) => void;
+  uiLanguage: UiLanguage;
+}) {
+  const label = attachmentLabel(props.attachment, props.uiLanguage);
+
+  return (
+    <button
+      aria-label={`${label} ${t(props.uiLanguage, "imageAttachmentPreview")}`}
+      className="message-attachment"
+      onClick={() => props.onPreview(props.attachment)}
+      title={label}
+      type="button"
+    >
+      <img
+        alt={label}
+        className="message-attachment-thumb"
+        loading="lazy"
+        src={props.attachment.imageUrl}
+      />
+      <div className="message-attachment-text">
+        <span className="message-attachment-name">{label}</span>
+      </div>
+    </button>
+  );
+}
+
+function ImageLightbox(props: {
+  attachment: SessionTranscriptAttachment;
+  uiLanguage: UiLanguage;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        props.onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [props.onClose]);
+
+  const label = attachmentLabel(props.attachment, props.uiLanguage);
+
+  return (
+    <div aria-label={label} aria-modal="true" className="attachment-lightbox" role="dialog">
+      <button
+        aria-label={t(props.uiLanguage, "closePreview")}
+        className="attachment-lightbox-backdrop"
+        onClick={props.onClose}
+        type="button"
+      />
+      <div className="attachment-lightbox-panel">
+        <button
+          aria-label={t(props.uiLanguage, "closePreview")}
+          className="attachment-lightbox-close"
+          onClick={props.onClose}
+          type="button"
+        >
+          ×
+        </button>
+        <img alt={label} className="attachment-lightbox-image" src={props.attachment.imageUrl} />
+        <div className="attachment-lightbox-caption">{label}</div>
       </div>
     </div>
   );
@@ -510,6 +618,8 @@ export function TranscriptPanel(props: {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [previewedAttachment, setPreviewedAttachment] =
+    useState<SessionTranscriptAttachment | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -641,7 +751,12 @@ export function TranscriptPanel(props: {
                   </span>
                 </div>
               </div>
-              <MarkdownMessage content={item.content} uiLanguage={props.uiLanguage} />
+              <MarkdownMessage
+                attachments={item.attachments}
+                content={item.content}
+                onPreviewAttachment={setPreviewedAttachment}
+                uiLanguage={props.uiLanguage}
+              />
             </article>
           ))}
         </div>
@@ -674,6 +789,14 @@ export function TranscriptPanel(props: {
           {sending ? tt("sendingMessage") : tt("sendMessage")}
         </button>
       </form>
+
+      {previewedAttachment ? (
+        <ImageLightbox
+          attachment={previewedAttachment}
+          onClose={() => setPreviewedAttachment(null)}
+          uiLanguage={props.uiLanguage}
+        />
+      ) : null}
     </section>
   );
 }

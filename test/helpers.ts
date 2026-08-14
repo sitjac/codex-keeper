@@ -35,6 +35,8 @@ export async function writeRolloutFixture(params: {
   threadId: string;
   userMessage: string;
   lastAgentMessage: string;
+  userContent?: Array<Record<string, unknown>>;
+  assistantContent?: Array<Record<string, unknown>>;
   updatedAt?: string;
   cwd?: string;
   source?: string;
@@ -86,7 +88,7 @@ export async function writeRolloutFixture(params: {
       payload: {
         type: "message",
         role: "user",
-        content: [
+        content: params.userContent ?? [
           {
             type: "input_text",
             text: params.userMessage,
@@ -109,7 +111,7 @@ export async function writeRolloutFixture(params: {
         type: "message",
         role: "assistant",
         phase: "commentary",
-        content: [
+        content: params.assistantContent ?? [
           {
             type: "output_text",
             text: params.lastAgentMessage,

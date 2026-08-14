@@ -7,6 +7,8 @@ export type {
   SessionMessageResponse,
   SessionSummary,
   SessionsResponse,
+  SessionTranscriptAttachment,
+  SessionTranscriptEntry,
   SessionTranscriptPage,
   UiLanguage,
   WorkspaceSummary,

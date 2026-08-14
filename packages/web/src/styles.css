@@ -652,6 +652,72 @@ pre {
   margin: 0 0 10px;
 }
 
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.message-attachment {
+  display: flex;
+  flex: 0 1 260px;
+  flex-direction: column;
+  gap: 8px;
+  width: min(100%, 260px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text);
+  background: var(--panel-muted);
+  text-align: left;
+}
+
+.message-attachment:hover {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--panel-muted) 82%, var(--panel));
+}
+
+.message-attachment:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.message-attachment-thumb {
+  display: block;
+  width: 100%;
+  height: 160px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--panel);
+  object-fit: contain;
+}
+
+.message-attachment-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.message-attachment-name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-attachment-meta {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .message-markdown h3,
 .message-markdown h4,
 .message-markdown h5 {
@@ -821,6 +887,80 @@ pre {
 .message-markdown th {
   background: var(--panel-muted);
   font-weight: 650;
+}
+
+.attachment-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.attachment-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(10, 12, 16, 0.78);
+  cursor: pointer;
+}
+
+.attachment-lightbox-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  max-width: min(96vw, 1280px);
+  max-height: 92vh;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.attachment-lightbox-image {
+  display: block;
+  max-width: 96vw;
+  max-height: 82vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #000;
+  object-fit: contain;
+  box-shadow: var(--shadow);
+}
+
+.attachment-lightbox-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.attachment-lightbox-close:hover {
+  background: var(--panel-muted);
+}
+
+.attachment-lightbox-close:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.attachment-lightbox-caption {
+  align-self: center;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  font-size: 12px;
 }
 
 .chat-composer {

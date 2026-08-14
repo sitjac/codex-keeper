@@ -3,6 +3,7 @@ import path from "node:path";
 import type {
   MaterializedSession,
   SessionTranscript,
+  SessionTranscriptAttachment,
   SessionTranscriptEntry,
   SessionTranscriptPage,
   SessionTranscriptRole,
@@ -63,6 +64,112 @@ function normalizeTranscriptText(input: unknown): string | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function extractImageTagMetadata(text: string): { name?: string; path?: string } | undefined {
+  const trimmed = text.trim();
+  if (!/^<image\b/i.test(trimmed)) {
+    return undefined;
+  }
+
+  const name = trimmed.match(/name=\[([^\]]+)\]/)?.[1]?.trim();
+  const imagePath = trimmed.match(/path="([^"]+)"/)?.[1]?.trim();
+  if (!name && !imagePath) {
+    return undefined;
+  }
+
+  return {
+    name,
+    path: imagePath,
+  };
+}
+
+function stripImageTags(text: string): string {
+  return text.replace(/<\/?image\b[^>]*>/gi, "").trim();
+}
+
+interface TranscriptContentExtraction {
+  content: string;
+  attachments: SessionTranscriptAttachment[];
+}
+
+function extractTranscriptContent(
+  content: unknown,
+  allowedTypes: string[],
+): TranscriptContentExtraction {
+  if (!Array.isArray(content)) {
+    return { content: "", attachments: [] };
+  }
+
+  const textParts: string[] = [];
+  const attachments: SessionTranscriptAttachment[] = [];
+  let pendingImageMeta: { name?: string; path?: string } | undefined;
+
+  for (const item of content) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+
+    const record = item as Record<string, unknown>;
+    const type = typeof record.type === "string" ? record.type : undefined;
+
+    if (type && allowedTypes.includes(type) && typeof record.text === "string") {
+      const rawText = normalizeTranscriptText(record.text);
+      if (!rawText) {
+        continue;
+      }
+
+      const trimmed = rawText.trim();
+      if (trimmed === "</image>") {
+        pendingImageMeta = undefined;
+        continue;
+      }
+
+      const imageMeta = extractImageTagMetadata(trimmed);
+      if (imageMeta) {
+        pendingImageMeta = imageMeta;
+      }
+
+      const visibleText = normalizeTranscriptText(stripImageTags(rawText));
+      if (visibleText) {
+        textParts.push(visibleText);
+      }
+      continue;
+    }
+
+    const imageUrl =
+      typeof record.image_url === "string"
+        ? record.image_url
+        : typeof record.imageUrl === "string"
+          ? record.imageUrl
+          : typeof record.url === "string"
+            ? record.url
+            : undefined;
+
+    if (imageUrl) {
+      attachments.push({
+        kind: "image",
+        imageUrl,
+        name:
+          normalizeTranscriptText(
+            typeof record.name === "string" ? record.name : pendingImageMeta?.name,
+          ) ?? undefined,
+        path:
+          normalizeTranscriptText(
+            typeof record.path === "string" ? record.path : pendingImageMeta?.path,
+          ) ?? undefined,
+        detail:
+          normalizeTranscriptText(typeof record.detail === "string" ? record.detail : undefined) ??
+          undefined,
+      });
+      pendingImageMeta = undefined;
+    }
+  }
+
+  return {
+    content: normalizeTranscriptText(textParts.join("\n\n")) ?? "",
+    attachments,
+  };
+}
+
 function shouldHideTranscriptMessage(
   role: SessionTranscriptRole,
   content: string,
@@ -92,26 +199,6 @@ function shouldHideTranscriptMessage(
   return {
     hidden: false,
   };
-}
-
-function flattenContentItems(content: unknown, allowedTypes?: string[]): string | undefined {
-  if (!Array.isArray(content)) {
-    return undefined;
-  }
-
-  const values = content
-    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-    .filter((item) =>
-      allowedTypes
-        ? typeof item.type === "string" && allowedTypes.includes(item.type)
-        : typeof item.text === "string",
-    )
-    .map((item) => normalizeTranscriptText(item.text))
-    .filter((value): value is string => Boolean(value))
-    .join("\n\n")
-    .trim();
-
-  return values.length > 0 ? values : undefined;
 }
 
 function summarizeFunctionArguments(
@@ -508,13 +595,13 @@ export function parseSessionTranscript(raw: string): SessionTranscript {
         const role = payload.role as string | undefined;
         const transcriptRole: SessionTranscriptRole =
           role === "assistant" ? "assistant" : role === "user" ? "user" : "system";
-        const content = flattenContentItems(
+        const { content, attachments } = extractTranscriptContent(
           payload.content,
           transcriptRole === "assistant"
             ? ["output_text", "input_text"]
             : ["input_text", "output_text"],
         );
-        if (!content) {
+        if (content.length === 0 && attachments.length === 0) {
           continue;
         }
         const hidden = shouldHideTranscriptMessage(transcriptRole, content);
@@ -523,6 +610,7 @@ export function parseSessionTranscript(raw: string): SessionTranscript {
           role: transcriptRole,
           kind: "message",
           content,
+          ...(attachments.length > 0 ? { attachments } : {}),
           phase: typeof payload.phase === "string" ? payload.phase : undefined,
           hidden: hidden.hidden,
           hiddenReason: hidden.reason,

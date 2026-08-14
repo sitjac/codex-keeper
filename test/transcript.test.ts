@@ -41,6 +41,51 @@ describe("session transcript", () => {
     ).toBe(true);
   });
 
+  it("extracts image attachments from pasted Codex images", async () => {
+    const workspace = await createTempWorkspace();
+    const rolloutPath = await writeRolloutFixture({
+      codexHome: workspace.codexHome,
+      threadId: "019d-transcript-image-1",
+      userMessage: "frame显示Waiting是什么原因？[Image #1]",
+      userContent: [
+        {
+          type: "input_text",
+          text: '<image name=[Image #1] path="/tmp/codex-clipboard-PBJJ6r.png">',
+        },
+        {
+          type: "input_image",
+          image_url:
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7+e2kAAAAASUVORK5CYII=",
+          detail: "high",
+        },
+        {
+          type: "input_text",
+          text: "</image>",
+        },
+        {
+          type: "input_text",
+          text: "frame显示Waiting是什么原因？[Image #1]",
+        },
+      ],
+      lastAgentMessage: "检查 frame 状态",
+    });
+
+    const transcript = await readSessionTranscript(rolloutPath);
+    const message = transcript.items.find(
+      (item) => item.role === "user" && item.kind === "message",
+    );
+
+    expect(message?.content).toBe("frame显示Waiting是什么原因？[Image #1]");
+    expect(message?.attachments).toHaveLength(1);
+    expect(message?.attachments?.[0]).toMatchObject({
+      kind: "image",
+      name: "Image #1",
+      path: "/tmp/codex-clipboard-PBJJ6r.png",
+      detail: "high",
+    });
+    expect(message?.attachments?.[0]?.imageUrl.startsWith("data:image/png;base64,")).toBe(true);
+  });
+
   it("supports history-style transcript pagination", async () => {
     const workspace = await createTempWorkspace();
     const rolloutPath = await writeRolloutFixture({

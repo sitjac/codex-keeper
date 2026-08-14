@@ -11,6 +11,16 @@ export type SessionTranscriptKind =
   | "reasoning"
   | "status";
 
+export type SessionTranscriptAttachmentKind = "image";
+
+export interface SessionTranscriptAttachment {
+  kind: SessionTranscriptAttachmentKind;
+  imageUrl: string;
+  name?: string;
+  path?: string;
+  detail?: string;
+}
+
 export interface GeneralConfig {
   codexHome: string;
   stateDir: string;
@@ -167,6 +177,7 @@ export interface SessionTranscriptEntry {
   role: SessionTranscriptRole;
   kind: SessionTranscriptKind;
   content: string;
+  attachments?: SessionTranscriptAttachment[];
   name?: string;
   callId?: string;
   phase?: string;
